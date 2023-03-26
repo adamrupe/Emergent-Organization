@@ -1,0 +1,9 @@
+Minutes to Solution: 16.72106623649597
+past depth: 12, 
+future depth: 2, 
+c: 1, 
+past K: 20, 
+future K: 25, 
+past decay: 0.1, 
+future decay: 0.0, 
+decay type: spacetime

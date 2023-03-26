@@ -1,0 +1,8 @@
+Multivariate analysis with lightcone metric to replicate IVT---(U850*TMQ)^2 concat (V850*TMQ)^2 lightcones---spacetime decays applied appropriately.
+past_depth: 10 
+future_depth: 3 
+c :1                
+past_K: 18 
+future_K: 20 
+lc decay: 0.5 
+Time to solution: 519.836147069931

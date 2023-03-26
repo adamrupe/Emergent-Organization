@@ -1,0 +1,7 @@
+past_depth: 16 
+future_depth: 3 
+c :1                
+past_K: 24 
+future_K: 50 
+lc decay: 0.0 
+Time to solution: 897.4013404846191

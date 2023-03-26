@@ -1,0 +1,9 @@
+NOTE: clustering with SPACE-ONLY decay using decay rate 1.0, ignore rate=0 below.
+past_depth: 12 
+future_depth: 3 
+c :1                
+past_K: 60 
+future_K: 50 
+lc decay: 0.8 
+decay type: spacetime 
+Time to solution: 454.663387298584

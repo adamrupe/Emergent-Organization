@@ -1,0 +1,8 @@
+Multivariate analysis, with PSL lightcones concatenated to TMQ lightcones, with temporal decays applied appropriately.           Ratio of PSL to TMQ for weighing contribution to lightcone distance: 1.0
+past_depth: 8 
+future_depth: 3 
+c :1                
+past_K: 24 
+future_K: 50 
+lc decay: 1.0 
+Time to solution: 321.37833976745605

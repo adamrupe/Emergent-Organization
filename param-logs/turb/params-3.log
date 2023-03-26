@@ -1,0 +1,13 @@
+Minutes to Solution: 4.454206931591034
+past depth: 10, 
+future depth: 2, 
+c: 1, 
+past K: 8, 
+future K: 20, 
+past decay: 0.5, 
+future decay: 0.0, 
+decay type: spacetime, 
+transients: 101
+Reconstructed from absolute value velocity field
+
+
