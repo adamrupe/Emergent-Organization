@@ -154,10 +154,17 @@ def chi_squared(X, Y, *args, offset=10, **kwargs):
     '''
     adjusted_X = X + offset
     adjusted_Y = Y + offset
-    return chisquare(adjusted_X, adjusted_Y, *args, **kwargs)[1]
+    
+    try:
+        output = chisquare(adjusted_X, adjusted_Y, *args, **kwargs)
+        pval = output.pvalue 
+    except ValueError:
+        pval = 0.0
+
+    return pval
 
 
-@njit(parallel=True, fastmath=True)
+@njit(fastmath=True)
 def lightcone_size_2D(depth, c):
     size = 0
     for d in range(depth+1):
@@ -384,7 +391,7 @@ class DiscoReconstructor(object):
     Currently can only use the DAAL4PY KMeans
     '''
 
-    def __init__(self, past_depth, future_depth, propagation_speed):
+    def __init__(self, past_depth, future_depth, propagation_speed, distributed=True):
         '''
         Initialize Reconstructor instance with main inference parameters.
         These define the shape of the lightcone template.
@@ -410,6 +417,8 @@ class DiscoReconstructor(object):
         self.past_depth = past_depth
         self.future_depth = future_depth
         self.c = propagation_speed
+
+        self._distributed = distributed
 
         # for causal clustering and filtering
         self.states = []
@@ -550,10 +559,10 @@ class DiscoReconstructor(object):
             past_init_params = {'nClusters':self._N_pasts,
                                     #'method':'plusPlusDense',
                                    'method': method,
-                                   'distributed': True}
+                                   'distributed': self._distributed}
         initial = d4p.kmeans_init(**past_init_params)
         centroids = initial.compute(self.plcs).centroids
-        past_cluster = d4p.kmeans(distributed=True, **past_params).compute(self.plcs, centroids)
+        past_cluster = d4p.kmeans(distributed=self._distributed, **past_params).compute(self.plcs, centroids)
         past_local = d4p.kmeans(nClusters=self._N_pasts, distributed=False, assignFlag=True, maxIterations=0).compute(self.plcs, past_cluster.centroids)
         self.pasts = past_local.assignments.flatten()
      
@@ -568,10 +577,10 @@ class DiscoReconstructor(object):
             future_init_params = {'nClusters':self._N_futures,
                                   #'method':'plusPlusDense',
                                    'method': method,
-                                   'distributed': True}
+                                   'distributed': self._distributed}
         initial = d4p.kmeans_init(**future_init_params)
         centroids = initial.compute(self.flcs).centroids
-        future_cluster = d4p.kmeans(distributed=True, **future_params).compute(self.flcs, centroids)
+        future_cluster = d4p.kmeans(distributed=self._distributed, **future_params).compute(self.flcs, centroids)
         future_local = d4p.kmeans(nClusters=self._N_futures, distributed=False, assignFlag=True, maxIterations=0).compute(self.flcs, future_cluster.centroids)
         self.futures = future_local.assignments.flatten()
 
@@ -587,7 +596,8 @@ class DiscoReconstructor(object):
             raise RuntimeError("Must call .cluster_lightcones() before calling .reconstruct_morphs()")
         # morphs accessed through this joint distribution over pasts and futures
         self.local_joint_dist = dist_from_data(self.pasts, self.futures, self._N_pasts, self._N_futures)#, row_labels=True)
-        self.global_joint_dist = np.zeros((self._N_pasts, self._N_futures), dtype=np.uint64)
+        if self._distributed:
+            self.global_joint_dist = np.zeros((self._N_pasts, self._N_futures), dtype=np.uint64)
 
         del self.futures
 
@@ -625,9 +635,12 @@ class DiscoReconstructor(object):
        
         # create past labels to keep track of after random permutation
         rlabels = np.arange(0, self._N_pasts, dtype=np.uint64)[np.newaxis] 
-        self.global_joint_dist = np.hstack((rlabels.T, self.global_joint_dist))
-
-        morphs = self.global_joint_dist
+        # self.global_joint_dist = np.hstack((rlabels.T, self.global_joint_dist))
+        # morphs = self.global_joint_dist
+        if self._distributed:
+            morphs = np.hstack((rlabels.T, self.global_joint_dist))
+        else:
+            morphs = np.hstack((rlabels.T, self.local_joint_dist))
 
         self._label_map = np.zeros(self._N_pasts, dtype=int) # for vectorized causal_filter
 
