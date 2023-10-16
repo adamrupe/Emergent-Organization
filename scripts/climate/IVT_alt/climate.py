@@ -37,7 +37,7 @@ future_params = {'nClusters':future_K, 'maxIterations':200}
 # A = 0.25
 
 observable = 'IVT_alt'
-result = '17'
+result = '16'
 
 d4p.daalinit()
 
@@ -88,14 +88,12 @@ del Vfield
 # recon = DiscoReconstructor(past_depth, future_depth, c)
 
 # concatenate U and V lightcones onto TMQ lightcones
-plc_speeds = np.sqrt(reconU.plcs**2 + reconV.plcs**2)
 plcs_1 = (reconU.plcs*reconQ.plcs)*(reconU.plcs*reconQ.plcs)
 plcs_2 = (reconV.plcs*reconQ.plcs)*(reconV.plcs*reconQ.plcs)
-reconQ.plcs = np.concatenate((plcs_1*plc_speeds, plcs_2*plc_speeds), axis=1)
-flc_speeds = np.sqrt(reconU.flcs**2 + reconV.flcs**2)
+reconQ.plcs = np.concatenate((plcs_1, plcs_2), axis=1)
 flcs_1 = (reconU.flcs*reconQ.flcs)*(reconU.flcs*reconQ.flcs)
 flcs_2 = (reconV.flcs*reconQ.flcs)*(reconV.flcs*reconQ.flcs)
-reconQ.flcs = np.concatenate((flcs_1*flc_speeds, flcs_2*flc_speeds), axis=1)
+reconQ.flcs = np.concatenate((flcs_1, flcs_2), axis=1)
 
 plc_decays = np.concatenate(( past_spacetime_decay(past_depth, c, decay), past_spacetime_decay(past_depth, c, decay) ))
 reconQ.plcs *= np.sqrt(plc_decays)
