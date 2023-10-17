@@ -384,11 +384,18 @@ def future_spacetime_decay(depth, c, decay_rate):
 
 class DiscoReconstructor(object):
     '''
-    Dev class for prototyping Reconstructor used for Project DisCo
+    Class for handling single-node and distributed local causal state 
+    reconstruction and segmentation. The basic pipeline is:
 
-    For 2+1D only
+    model = DiscoReconstructor()
+    model.extract(target_field)
+    model.kmeans_lightcones()
+    model.reconstruct_morphs()
+    model.reconstruct_states()
+    model.causal_filter()
 
-    Currently can only use the DAAL4PY KMeans
+    The local causal state segmentation field is then the attribute:
+    model.state_field
     '''
 
     def __init__(self, past_depth, future_depth, propagation_speed, distributed=True):
@@ -492,19 +499,10 @@ class DiscoReconstructor(object):
                             past_decay=0, future_decay=0,
                             past_init_params=None, future_init_params=None):
         '''
-        Performs clustering on the master arrays of both past and future lightcones.
+        Performs clustering on the global arrays of both past and future lightcones.
 
-        Expects clustering algorithm to give integer cluster labels start at 0,
-        with the "noise cluster" having label -1.
-
-        Diagnostics of this clustering (what are the unique clusters and how many
-        lightcones were assigned to each cluster) accessed through namedtuple
-        Reconstructor.lc_cluster_diagnostic.
-
-        *** Actually make revert back to original Reconstructor format; don't require
-        sklearn objects for clustering -- but do save centroids***
-
-        *** How is the call to distributed DAAL4PY clustering objects going to work with this? ***
+        See the daal4py k-means documentation for more details: 
+        https://intelpython.github.io/daal4py/algorithms.html#k-means-clustering
 
         Parameters
         ----------
@@ -614,11 +612,6 @@ class DiscoReconstructor(object):
         it is assigned to the NAN state. If there is a noise cluster for futures,
         the counts of this cluster are removed from the morphs of each past.
 
-        NOTE -- because I'm using dist metrics from scipy, I'm using p values to
-        decide whether two distributions are identical, not strictly using a
-        minimum distribution distance threshold (p value comparison is opposite
-        of minimum distance comparison)
-
         Parameters
         ----------
         metric: function
@@ -642,7 +635,7 @@ class DiscoReconstructor(object):
         else:
             morphs = np.hstack((rlabels.T, self.local_joint_dist))
 
-        self._label_map = np.zeros(self._N_pasts, dtype=int) # for vectorized causal_filter
+        self.label_map = np.zeros(self._N_pasts, dtype=int) # for vectorized causal_filter
 
         # hierarchical agglomerative clustering -- clusters pasts into local causal states
         for item in morphs:
@@ -653,7 +646,7 @@ class DiscoReconstructor(object):
                 if p_value > pval_threshold:
                     state.update(past, morph)
                     self.epsilon_map.update({past : state})
-                    self._label_map[past] = state.index
+                    self.label_map[past] = state.index
                     break
 
             else:
@@ -661,7 +654,7 @@ class DiscoReconstructor(object):
                 self.states.append(new_state)
                 self._state_index += 1
                 self.epsilon_map.update({past : new_state})
-                self._label_map[past] = new_state.index
+                self.label_map[past] = new_state.index
 
         del self.joint_dist
 
@@ -672,10 +665,6 @@ class DiscoReconstructor(object):
 
         The margins, spacetime points that don't have a full past or future lightcone,
         are assigned the NAN state with integer label 0.
-
-        *** Should make a state_label_map attribute that is a numpy array
-            where state_label_map[i] maps past_i to its local causal state integer label.
-            Then can use this as a mask for vectorized filtering, instead of ndenumerate.***
         '''
         # OPT: comment out for peformance runs
         if len(self.states) == 0:
@@ -685,7 +674,7 @@ class DiscoReconstructor(object):
         self.state_field = np.zeros(self._adjusted_shape, dtype=int)
 
         # use label_map to map past_field to field of local causal state labels
-        self.state_field = self._label_map[past_field]
+        self.state_field = self.label_map[past_field]
 
         # Go back and re-pad state field with margin so it is the same shape as the original data
         if self._bc == 'open':
